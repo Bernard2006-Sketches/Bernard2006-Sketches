@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Account — Nanafx Forex Academy</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="supabase-config.js"></script>
+<style>
+  /* Auth-gate overlay — same pattern as app.html: nothing renders until session is confirmed */
+  #authGateOverlay{
+    position:fixed; inset:0; z-index:99999; background:#0E1420;
+    display:flex; align-items:center; justify-content:center;
+    color:#9BA5B5; font-family:Inter,sans-serif; font-size:14px;
+  }
+  #authGateOverlay .spinner{
+    width:22px; height:22px; border:2px solid #2A3547; border-top-color:#D9A857;
+    border-radius:50%; animation:gate-spin 0.8s linear infinite; margin-right:10px;
+  }
+  @keyframes gate-spin{ to{transform:rotate(360deg);} }
+  body.auth-pending{ overflow:hidden; }
+</style>
+<script>
+  document.documentElement.classList.add('auth-pending');
+  (function(){
+    async function guard(){
+      if(typeof SUPABASE_URL === 'undefined' || SUPABASE_URL.includes('YOUR_SUPABASE')){
+        document.write('Supabase is not configured yet. Edit supabase-config.js, then reload.');
+        return;
+      }
+      const { data, error } = await supabaseClient.auth.getSession();
+      if(error || !data || !data.session){
+        window.location.replace('login.html');
+        return;
+      }
+      document.addEventListener('DOMContentLoaded', () => {
+        const overlay = document.getElementById('authGateOverlay');
+        if(overlay) overlay.remove();
+        document.body.classList.remove('auth-pending');
+        loadOrders();
+      });
+    }
+    guard();
+  })();
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0E1420; --bg-raised:#141B29; --bg-card:#1A2233; --line:#2A3547;
+    --gold:#D9A857; --gold-dim:#A67C3D; --green:#1C7A6E; --green-bright:#2FA99A;
+    --red:#C9563F; --text:#EDEEF2; --text-dim:#9BA5B5; --text-faint:#5C6A7E;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{ background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; min-height:100vh; }
+  a{ color:inherit; text-decoration:none; }
+  .mono{ font-family:'JetBrains Mono',monospace; }
+  h1,h2{ font-family:'Space Grotesk',sans-serif; font-weight:600; }
+  .wrap{ max-width:720px; margin:0 auto; padding:0 24px; }
+
+  nav{
+    border-bottom:1px solid var(--line); padding:18px 0;
+  }
+  .nav-inner{ max-width:720px; margin:0 auto; padding:0 24px; display:flex; align-items:center; justify-content:space-between; }
+  .logo{ font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:19px; display:flex; align-items:center; gap:9px; }
+  .logo .dot{ width:8px; height:8px; border-radius:50%; background:var(--gold); box-shadow:0 0 12px var(--gold); }
+
+  .btn{
+    display:inline-flex; align-items:center; justify-content:center; gap:8px;
+    padding:11px 18px; border-radius:8px; font-weight:600; font-size:13.5px;
+    cursor:pointer; border:1px solid var(--line); background:transparent; color:var(--text);
+    transition:border-color 0.2s ease, color 0.2s ease;
+  }
+  .btn:hover{ border-color:var(--gold-dim); color:var(--gold); }
+  .btn-gold{ background:var(--gold); color:#141110; border:none; }
+  .btn-gold:hover{ color:#141110; opacity:0.9; }
+  .btn-green{ background:var(--green); color:#eafff3; border:none; }
+  .btn-green:hover{ color:#eafff3; opacity:0.9; }
+
+  .page-head{ padding:44px 0 8px; }
+  .page-head h1{ font-size:28px; margin-bottom:6px; }
+  .page-head p{ color:var(--text-dim); font-size:14.5px; }
+
+  .section{ padding:28px 0; }
+  .product-card{
+    background:var(--bg-card); border:1px solid var(--line); border-radius:16px;
+    padding:26px; margin-bottom:20px;
+  }
+  .product-card .row-top{ display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:14px; gap:12px; }
+  .product-card h3{ font-size:19px; margin-bottom:4px; }
+  .product-card .price{ font-size:13px; color:var(--text-faint); font-family:'JetBrains Mono',monospace; }
+
+  .status-badge{
+    font-size:12px; font-weight:700; padding:5px 12px; border-radius:100px;
+    font-family:'JetBrains Mono',monospace; text-transform:uppercase; letter-spacing:0.03em;
+    white-space:nowrap;
+  }
+  .status-badge.none{ background:rgba(255,255,255,0.06); color:var(--text-faint); }
+  .status-badge.pending{ background:rgba(217,168,87,0.15); color:var(--gold); }
+  .status-badge.confirmed{ background:rgba(47,169,154,0.15); color:var(--green-bright); }
+  .status-badge.rejected{ background:rgba(201,86,63,0.15); color:#e08d7c; }
+
+  .product-body p{ font-size:14px; color:var(--text-dim); margin-bottom:16px; line-height:1.6; }
+
+  .loading-row{ display:flex; align-items:center; gap:10px; color:var(--text-faint); font-size:14px; padding:40px 0; justify-content:center; }
+  .loading-row .spinner{
+    width:16px; height:16px; border:2px solid var(--line); border-top-color:var(--gold);
+    border-radius:50%; animation:gate-spin 0.8s linear infinite;
+  }
+
+  footer{ padding:40px 0 60px; text-align:center; }
+  footer a{ color:var(--text-faint); font-size:13px; }
+  footer a:hover{ color:var(--gold); }
+</style>
+</head>
+<body class="auth-pending">
+<div id="authGateOverlay"><div class="spinner"></div>Checking your session…</div>
+
+<nav>
+  <div class="nav-inner">
+    <div class="logo"><span class="dot"></span>NANAFX</div>
+    <div style="display:flex; gap:10px;">
+      <a href="app.html" class="btn">← Back to Site</a>
+      <span class="btn" onclick="handleLogout()">Log Out</span>
+    </div>
+  </div>
+</nav>
+
+<div class="wrap">
+  <div class="page-head">
+    <h1>My Account</h1>
+    <p id="userInfo">Loading your details…</p>
+  </div>
+
+  <div class="section" id="ordersSection">
+    <div class="loading-row"><div class="spinner"></div>Loading your orders…</div>
+  </div>
+</div>
+
+<footer>
+  <a href="https://wa.me/233548618055" target="_blank">Need help? Message us on WhatsApp →</a>
+</footer>
+
+<script>
+  const PRODUCTS = {
+    learning_group: {
+      name: 'Forex Learning Group',
+      price: 'GHS 100',
+      description: 'The full 4-week London/New York breakout curriculum, delivered via WhatsApp.',
+      whatsappLink: 'https://wa.me/233548618055?text=Hi%2C%20I%27ve%20paid%20for%20the%20Learning%20Group%20and%20I%27m%20ready%20to%20start.'
+    },
+    signal_group: {
+      name: 'Signal Group',
+      price: 'GHS 200',
+      description: 'Daily XAUUSD signals with entry, SL & TP, timed to London/New York sessions.',
+      whatsappLink: 'https://wa.me/233548618055?text=Hi%2C%20I%27ve%20paid%20for%20Signals%20and%20I%27m%20ready%20to%20join.'
+    }
+  };
+
+  async function loadOrders(){
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    if(!user) return;
+
+    const name = (user.user_metadata && user.user_metadata.full_name) || user.email;
+    document.getElementById('userInfo').textContent = `Logged in as ${name} (${user.email})`;
+
+    const { data: orders, error } = await supabaseClient
+      .from('orders')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+
+    const section = document.getElementById('ordersSection');
+
+    if(error){
+      section.innerHTML = `<div class="product-card"><p style="color:#e08d7c;">Could not load your orders: ${error.message}</p></div>`;
+      return;
+    }
+
+    // For each product, find the most recent order (if any)
+    let html = '';
+    for(const [key, product] of Object.entries(PRODUCTS)){
+      const productOrders = (orders || []).filter(o => o.product === key);
+      const latest = productOrders[0]; // already sorted newest-first
+      const status = latest ? latest.status : 'none';
+
+      html += renderProductCard(key, product, status, latest);
+    }
+    section.innerHTML = html;
+  }
+
+  function renderProductCard(key, product, status, order){
+    let badgeClass = status;
+    let badgeText = status === 'none' ? 'Not purchased' : status;
+    let bodyContent = '';
+
+    if(status === 'none'){
+      bodyContent = `
+        <p>${product.description}</p>
+        <a href="app.html#signals" class="btn btn-gold">View & Purchase — ${product.price}</a>
+      `;
+    } else if(status === 'pending'){
+      bodyContent = `
+        <p>${product.description}</p>
+        <p style="color:var(--gold);">We're verifying your payment (ref: <span class="mono">${escapeHtml(order.momo_reference)}</span>). This is usually quick.</p>
+        <a href="https://wa.me/233548618055" target="_blank" class="btn">Message us if it's been a while</a>
+      `;
+    } else if(status === 'confirmed'){
+      bodyContent = `
+        <p>${product.description}</p>
+        <p style="color:var(--green-bright);">You're in! Tap below to get your WhatsApp access.</p>
+        <a href="${product.whatsappLink}" target="_blank" class="btn btn-green">Get Access on WhatsApp</a>
+      `;
+    } else if(status === 'rejected'){
+      bodyContent = `
+        <p>${product.description}</p>
+        <p style="color:#e08d7c;">We couldn't verify this payment (ref: <span class="mono">${escapeHtml(order.momo_reference)}</span>). Please message us or try again.</p>
+        <a href="https://wa.me/233548618055" target="_blank" class="btn">Message us on WhatsApp</a>
+      `;
+    }
+
+    return `
+      <div class="product-card">
+        <div class="row-top">
+          <div>
+            <h3>${product.name}</h3>
+            <div class="price">${product.price}</div>
+          </div>
+          <span class="status-badge ${badgeClass}">${badgeText}</span>
+        </div>
+        <div class="product-body">${bodyContent}</div>
+      </div>
+    `;
+  }
+
+  function escapeHtml(str){
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  async function handleLogout(){
+    await supabaseClient.auth.signOut();
+    window.location.href = 'login.html';
+  }
+</script>
+
+</body>
+</html>
