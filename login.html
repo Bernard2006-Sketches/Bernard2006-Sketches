@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Log In — Nanafx Forex Academy</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<!-- Supabase client library (CDN — no build step required) -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+  :root{
+    --bg:#0E1420; --bg-raised:#141B29; --bg-card:#1A2233; --line:#2A3547;
+    --gold:#D9A857; --gold-dim:#A67C3D; --green:#1C7A6E; --green-bright:#2FA99A;
+    --red:#C9563F; --text:#EDEEF2; --text-dim:#9BA5B5; --text-faint:#5C6A7E;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    background:var(--bg); color:var(--text); font-family:'Inter',sans-serif;
+    min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px;
+    position:relative; overflow-x:hidden;
+  }
+  body::before{
+    content:""; position:fixed; inset:0;
+    background:
+      radial-gradient(ellipse 700px 500px at 15% 0%, rgba(217,168,87,0.08), transparent 60%),
+      radial-gradient(ellipse 600px 500px at 90% 100%, rgba(28,122,110,0.08), transparent 60%);
+    pointer-events:none;
+  }
+  a{color:inherit; text-decoration:none;}
+  .mono{font-family:'JetBrains Mono',monospace;}
+  h1,h2{font-family:'Space Grotesk',sans-serif; font-weight:600;}
+
+  .card{
+    background:var(--bg-card); border:1px solid var(--line); border-radius:18px;
+    padding:40px 34px; max-width:400px; width:100%; position:relative; z-index:2;
+  }
+  .logo{
+    display:flex; align-items:center; justify-content:center; gap:9px;
+    font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:20px; margin-bottom:6px;
+  }
+  .logo .dot{width:8px; height:8px; border-radius:50%; background:var(--gold); box-shadow:0 0 12px var(--gold);}
+  .subtitle{text-align:center; color:var(--text-dim); font-size:14px; margin-bottom:30px;}
+
+  .tabs{display:flex; background:var(--bg-raised); border:1px solid var(--line); border-radius:10px; padding:4px; margin-bottom:24px;}
+  .tab-btn{
+    flex:1; background:transparent; border:none; padding:10px; border-radius:7px;
+    color:var(--text-dim); font-weight:600; font-size:13.5px; cursor:pointer;
+    transition:background 0.2s ease, color 0.2s ease; font-family:'Inter',sans-serif;
+  }
+  .tab-btn.active{background:var(--bg-card); color:var(--text);}
+
+  .form-group{margin-bottom:16px;}
+  .form-group label{display:block; font-size:13px; color:var(--text-dim); margin-bottom:7px;}
+  .form-group input{
+    width:100%; background:var(--bg-raised); border:1px solid var(--line); border-radius:8px;
+    padding:12px 14px; color:var(--text); font-size:14.5px; font-family:'Inter',sans-serif;
+    transition:border-color 0.2s ease;
+  }
+  .form-group input:focus{outline:none; border-color:var(--gold-dim);}
+  .form-row-between{display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; font-size:13px;}
+  .form-row-between a{color:var(--gold-dim);}
+  .form-row-between a:hover{color:var(--gold);}
+
+  .btn{
+    display:flex; align-items:center; justify-content:center; gap:8px; width:100%;
+    padding:13px 24px; border-radius:8px; font-weight:600; font-size:14.5px;
+    cursor:pointer; border:none; transition:transform 0.18s ease, box-shadow 0.18s ease;
+    background:var(--gold); color:#141110; font-family:'Inter',sans-serif;
+  }
+  .btn:hover{transform:translateY(-2px); box-shadow:0 8px 24px rgba(217,168,87,0.3);}
+  .btn:disabled{opacity:0.6; cursor:not-allowed; transform:none; box-shadow:none;}
+
+  .msg{
+    font-size:13px; padding:10px 14px; border-radius:8px; margin-bottom:16px; display:none;
+  }
+  .msg.error{background:rgba(201,86,63,0.12); border:1px solid rgba(201,86,63,0.35); color:#e08d7c; display:block;}
+  .msg.success{background:rgba(47,169,154,0.12); border:1px solid rgba(47,169,154,0.35); color:var(--green-bright); display:block;}
+  .msg.info{background:rgba(217,168,87,0.10); border:1px solid rgba(217,168,87,0.3); color:var(--gold); display:block;}
+
+  .divider{display:flex; align-items:center; gap:12px; margin:22px 0; color:var(--text-faint); font-size:12px;}
+  .divider::before, .divider::after{content:""; flex:1; height:1px; background:var(--line);}
+  .back-link{display:block; text-align:center; margin-top:24px; font-size:13.5px; color:var(--text-faint);}
+  .back-link:hover{color:var(--text-dim);}
+
+  .spinner{
+    width:16px; height:16px; border:2px solid rgba(20,17,16,0.3); border-top-color:#141110;
+    border-radius:50%; animation:spin 0.7s linear infinite; display:none;
+  }
+  .spinner.show{display:inline-block;}
+  @keyframes spin{ to{transform:rotate(360deg);} }
+
+  .setup-banner{
+    background:rgba(201,86,63,0.1); border:1px solid rgba(201,86,63,0.3); color:#e08d7c;
+    font-size:12.5px; padding:12px 16px; border-radius:10px; margin-bottom:20px; line-height:1.5;
+  }
+</style>
+</head>
+<body>
+
+<div class="card">
+  <div class="logo"><span class="dot"></span>NANAFX</div>
+  <p class="subtitle">Access your learning materials & signals</p>
+
+  <div id="setupBanner" class="setup-banner" style="display:none;">
+    ⚠️ Supabase isn't configured yet. Open <code>supabase-config.js</code> and add your Project URL and anon key.
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" id="tabLogin" onclick="switchTab('login')">Log In</button>
+    <button class="tab-btn" id="tabSignup" onclick="switchTab('signup')">Sign Up</button>
+  </div>
+
+  <div class="msg" id="statusMsg"></div>
+
+  <!-- LOGIN FORM -->
+  <form id="loginForm" onsubmit="return handleLogin(event)">
+    <div class="form-group">
+      <label>Email</label>
+      <input type="email" id="loginEmail" placeholder="you@example.com" required>
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input type="password" id="loginPassword" placeholder="••••••••" required>
+    </div>
+    <div class="form-row-between">
+      <span></span>
+      <a href="#" onclick="handleForgotPassword(); return false;">Forgot password?</a>
+    </div>
+    <button type="submit" class="btn" id="loginBtn">
+      <span>Log In</span><span class="spinner" id="loginSpinner"></span>
+    </button>
+  </form>
+
+  <!-- SIGNUP FORM -->
+  <form id="signupForm" style="display:none;" onsubmit="return handleSignup(event)">
+    <div class="form-group">
+      <label>Full name</label>
+      <input type="text" id="suName" placeholder="e.g. Kwame Mensah" required>
+    </div>
+    <div class="form-group">
+      <label>Email</label>
+      <input type="email" id="suEmail" placeholder="you@example.com" required>
+    </div>
+    <div class="form-group">
+      <label>WhatsApp number</label>
+      <input type="tel" id="suPhone" placeholder="e.g. 024 XXX XXXX" required>
+    </div>
+    <div class="form-group">
+      <label>Create password</label>
+      <input type="password" id="suPassword" placeholder="At least 6 characters" required minlength="6">
+    </div>
+    <button type="submit" class="btn" id="signupBtn">
+      <span>Create Account</span><span class="spinner" id="signupSpinner"></span>
+    </button>
+  </form>
+
+  <div class="divider">or</div>
+  <a href="https://chat.whatsapp.com/JxaPna2rNmI6QITodqOlMw?s=cl&p=i&mlu=0&ilr=0" target="_blank" class="btn" style="background:var(--green); color:#eafff3;">
+    Join Free Group on WhatsApp
+  </a>
+
+  <a href="index.html" class="back-link">← Back to home</a>
+</div>
+
+<script src="supabase-config.js"></script>
+<script>
+  // Check if Supabase has been configured
+  if(SUPABASE_URL.includes("YOUR_SUPABASE") || SUPABASE_ANON_KEY.includes("YOUR_SUPABASE")){
+    document.getElementById('setupBanner').style.display = 'block';
+  }
+
+  function switchTab(tab){
+    const isLogin = tab === 'login';
+    document.getElementById('tabLogin').classList.toggle('active', isLogin);
+    document.getElementById('tabSignup').classList.toggle('active', !isLogin);
+    document.getElementById('loginForm').style.display = isLogin ? 'block' : 'none';
+    document.getElementById('signupForm').style.display = isLogin ? 'none' : 'block';
+    hideMsg();
+  }
+
+  function showMsg(text, type){
+    const el = document.getElementById('statusMsg');
+    el.textContent = text;
+    el.className = 'msg ' + type;
+  }
+  function hideMsg(){
+    document.getElementById('statusMsg').className = 'msg';
+  }
+
+  async function handleLogin(e){
+    e.preventDefault();
+    hideMsg();
+    const email = document.getElementById('loginEmail').value.trim();
+    const password = document.getElementById('loginPassword').value;
+    const btn = document.getElementById('loginBtn');
+    const spinner = document.getElementById('loginSpinner');
+
+    btn.disabled = true; spinner.classList.add('show');
+
+    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+
+    btn.disabled = false; spinner.classList.remove('show');
+
+    if(error){
+      showMsg(error.message, 'error');
+      return false;
+    }
+
+    // Real session is now set by Supabase (stored securely, handles refresh automatically).
+    showMsg('Logged in — redirecting...', 'success');
+    setTimeout(() => { window.location.href = 'index.html'; }, 600);
+    return false;
+  }
+
+  async function handleSignup(e){
+    e.preventDefault();
+    hideMsg();
+    const name = document.getElementById('suName').value.trim();
+    const email = document.getElementById('suEmail').value.trim();
+    const phone = document.getElementById('suPhone').value.trim();
+    const password = document.getElementById('suPassword').value;
+    const btn = document.getElementById('signupBtn');
+    const spinner = document.getElementById('signupSpinner');
+
+    btn.disabled = true; spinner.classList.add('show');
+
+    const { data, error } = await supabaseClient.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { full_name: name, phone: phone } // stored as user metadata in Supabase
+      }
+    });
+
+    btn.disabled = false; spinner.classList.remove('show');
+
+    if(error){
+      showMsg(error.message, 'error');
+      return false;
+    }
+
+    if(data.user && !data.session){
+      // Email confirmation is required (Supabase default)
+      showMsg('Account created! Check your email to confirm before logging in.', 'info');
+    } else {
+      showMsg('Account created — redirecting...', 'success');
+      setTimeout(() => { window.location.href = 'index.html'; }, 600);
+    }
+    return false;
+  }
+
+  async function handleForgotPassword(){
+    const email = prompt('Enter your account email to receive a reset link:');
+    if(!email) return;
+    const { error } = await supabaseClient.auth.resetPasswordForEmail(email);
+    if(error){ showMsg(error.message, 'error'); }
+    else { showMsg('Password reset email sent — check your inbox.', 'success'); }
+  }
+
+  // If already logged in, skip straight to homepage
+  (async () => {
+    if(SUPABASE_URL.includes("YOUR_SUPABASE")) return;
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if(session){ window.location.href = 'index.html'; }
+  })();
+</script>
+
+</body>
+</html>
